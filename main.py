@@ -65,9 +65,9 @@ def loadJsonToDatawarehouseSnowflake(filenameInS3):
     database = parser.get("snowflake_creds", "database")
     schema = parser.get("snowflake_creds", "schema")
 
-    snow_conn = snowflake.connector.connect(user=username, password=password, account=account_name, database=database, schema=schema)
+    snow_conn = snowflake.connector.connect(user=username, password=password, account=account_name, database=database, schema="ingestion")
     cur = snow_conn.cursor()
-    sql = "insert into epam.myschema.stage(raw, filename, copied_at) select *, '" + filenameInS3 + "', CURRENT_TIMESTAMP FROM '@bikes/'"
+    sql = "insert into epam.ingestion.stage(raw, filename, copied_at) select *, '" + filenameInS3 + "', CURRENT_TIMESTAMP FROM '@bikes/'"
     cur.execute(sql)
     cur.close()
 
@@ -80,7 +80,8 @@ if __name__ == '__main__':
     # load
     writeJsonFile(bikesJson)
     filenameInS3 = uploadJsonToDatalakeS3()
+    # instead of running this daily, this can be simplified using Snowpipes, so when a new file pop up in S3, the copy process is executed
     loadJsonToDatawarehouseSnowflake(filenameInS3)
-    # transform
+    # transform (our events are about stolen bikes, so we will use factless tables, there is nothing special to meassure about this events)
     transformCopiedData(filenameInS3)
      
