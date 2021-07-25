@@ -70,7 +70,7 @@ def loadJsonToDatawarehouseSnowflake(filenameInS3):
     cur.execute(sql)
     cur.close()
 
-def transformCopiedData(filename):
+def populateDimBike():
     dimBikesSql = """
         insert into datamodel.dim_bike(id, description, frame_model, manufacturer_name, serial, valid_from, valid_to, valid)
         select 
@@ -94,12 +94,29 @@ def transformCopiedData(filename):
     snow_conn = snowflake.connector.connect(user=username, password=password, account=account_name, database=database, schema="ingestion")
     cur = snow_conn.cursor()
     cur.execute(dimBikesSql)
-
-
-
-
-
     cur.close()
+
+def populateFactlessBikeStolen():
+        factlesStolenBike = """
+            insert into datamodel.factless_bikes_stolen(bikeid, date, time)
+            select
+                raw:id,
+                date(to_timestamp(raw:date_stolen)),
+                time(to_timestamp(raw:date_stolen))
+            from ingestion.stage
+            where raw:stolen = true;
+            """
+        parser = configparser.ConfigParser()
+        parser.read("pipeline.conf")
+        username = parser.get("snowflake_creds", "username")
+        password = parser.get("snowflake_creds", "password")
+        account_name = parser.get("snowflake_creds", "account_name")
+        database = parser.get("snowflake_creds", "database")
+
+        snow_conn = snowflake.connector.connect(user=username, password=password, account=account_name,database=database, schema="ingestion")
+        cur = snow_conn.cursor()
+        cur.execute(factlesStolenBike)
+        cur.close()
 
 if __name__ == '__main__':
     # extract
@@ -110,5 +127,6 @@ if __name__ == '__main__':
     # instead of running this daily, this can be simplified using Snowpipes, so when a new file pop up in S3, the copy process is executed
     loadJsonToDatawarehouseSnowflake(filenameInS3)
     # transform (our events are about stolen bikes, so we will use factless tables, there is nothing special to meassure about this events)
-    transformCopiedData(filenameInS3)
-     
+    populateDimBike()
+    populateFactlessBikeStolen()
+
