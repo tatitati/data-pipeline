@@ -68,4 +68,3 @@ CREATE or REPLACE TABLE factless_bikes_stolen(
   bikeid int references dim_bike(surrogateId),
   date date references dim_date(date) -- this might allow me to create partitioned tables in the fact table
 );
-

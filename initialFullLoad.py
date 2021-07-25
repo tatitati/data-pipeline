@@ -70,17 +70,31 @@ def loadJsonToDatawarehouseSnowflake(filenameInS3):
     cur.execute(sql)
     cur.close()
 
-def transformCopiedData(filename):
+def transformCopiedData(filename, isFullLoad):
     sqlAllBikes = """
-        insert into datamodel.dim_bike(id, description, frame_model, manufacturer_name, serial)
+        insert into datamodel.dim_bike(id, description, frame_model, manufacturer_name, serial, valid_from, valid_to, valid)
         select 
             raw:id,
             raw:description,
             raw:frame_model,
             raw:manufacturer_name,
-            raw:serial
+            raw:serial,
+            CURRENT_TIMESTAMP,
+            '9999-02-20 00:00:00.000' as datetime,
+            true
         from ingestion.stage;
         """
+    parser = configparser.ConfigParser()
+    parser.read("pipeline.conf")
+    username = parser.get("snowflake_creds", "username")
+    password = parser.get("snowflake_creds", "password")
+    account_name = parser.get("snowflake_creds", "account_name")
+    database = parser.get("snowflake_creds", "database")
+
+    snow_conn = snowflake.connector.connect(user=username, password=password, account=account_name, database=database, schema="ingestion")
+    cur = snow_conn.cursor()
+    cur.execute(sqlAllBikes)
+    cur.close()
 
 if __name__ == '__main__':
     # extract
