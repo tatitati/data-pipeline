@@ -14,14 +14,14 @@ CREATE STAGE bikes
     CREDENTIALS=(AWS_KEY_ID='xxxx' AWS_SECRET_KEY='xxxxx')
     FILE_FORMAT = json_format;
 
--- stage
+-- create epam.ingestion.stage table
 CREATE OR REPLACE TABLE stage (
   raw variant not null,
   filename varchar not null,
   copied_at datetime not null
 );
 
--- transformations
+-- create epam.datamodel.dim_bike table
 CREATE TABLE dim_bike(
   id integer autoincrement primary key,
   desription    VARCHAR,
@@ -30,6 +30,7 @@ CREATE TABLE dim_bike(
   serial VARCHAR
 );
 
+-- populate epam.datamodel.dim_bike with data from epam.ingestion.stage
 insert into datamodel
 .dim_bike
 select
