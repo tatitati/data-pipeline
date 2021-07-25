@@ -63,7 +63,6 @@ def loadJsonToDatawarehouseSnowflake(filenameInS3):
     password = parser.get("snowflake_creds", "password")
     account_name = parser.get("snowflake_creds", "account_name")
     database = parser.get("snowflake_creds", "database")
-    schema = parser.get("snowflake_creds", "schema")
 
     snow_conn = snowflake.connector.connect(user=username, password=password, account=account_name, database=database, schema="ingestion")
     cur = snow_conn.cursor()
