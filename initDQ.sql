@@ -29,7 +29,7 @@ CREATE or REPLACE TABLE dim_bike(
   frame_model VARCHAR,
   manufacturer_name VARCHAR,
   serial VARCHAR,
-  -- slow changed dimension type 2
+  -- slow changing dimension (SCD) type 2
   valid_from datetime not null,
   valid_to datetime not null,
   valid boolean not null
