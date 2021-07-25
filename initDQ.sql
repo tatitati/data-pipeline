@@ -35,15 +35,15 @@ CREATE or REPLACE TABLE dim_bike(
 );
 
 -- create epam.datamodel.dim_datetime table
-CREATE OR REPLACE TABLE dim_datetime (
-        MY_DATE          DATE        NOT NULL,
-        YEAR             SMALLINT    NOT NULL
-        MONTH            SMALLINT    NOT NULL,
-        MONTH_NAME       CHAR(3)     NOT NULL,
-        DAY_OF_MON       SMALLINT    NOT NULL,
-        DAY_OF_WEEK      VARCHAR(9)  NOT NULL,
-        WEEK_OF_YEAR     SMALLINT    NOT NULL,
-        DAY_OF_YEAR      SMALLINT    NOT NULL
+CREATE OR REPLACE TABLE dim_date (
+       MY_DATE          DATE        NOT NULL
+      ,YEAR             SMALLINT    NOT NULL
+      ,MONTH            SMALLINT    NOT NULL
+      ,MONTH_NAME       CHAR(3)     NOT NULL
+      ,DAY_OF_MON       SMALLINT    NOT NULL
+      ,DAY_OF_WEEK      VARCHAR(9)  NOT NULL
+      ,WEEK_OF_YEAR     SMALLINT    NOT NULL
+      ,DAY_OF_YEAR      SMALLINT    NOT NULL
     )
     AS
       WITH CTE_MY_DATE AS (
@@ -65,6 +65,6 @@ CREATE OR REPLACE TABLE dim_datetime (
 CREATE or REPLACE TABLE factless_bikes_stolen(
   surrogateId int autoincrement primary key,
   bikeid int references dim_bike(surrogateId),
-  date int references dim_date(surrogateId),
+  date date references dim_date(date)
 );
 
