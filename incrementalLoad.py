@@ -6,6 +6,7 @@ import configparser
 import time
 import snowflake.connector
 
+
 def extractJsonFromRestApi():
     # Example of bike info returned
     # {
@@ -37,12 +38,14 @@ def extractJsonFromRestApi():
     urlSearch = "https://bikeindex.org:443/api/v3/search?page=1&per_page=25&location=IP&distance=10&stolenness=all"
     return seq(requests.get(urlSearch).json()['bikes'])
 
+
 def writeJsonFile(dataJson):
     with open('bikes.json', 'w') as file:
         for entry in dataJson.sequence:
             file.write(json.dumps(entry))
             file.write("\n")
     file.close()
+
 
 def uploadJsonToDatalakeS3():
     parser = configparser.ConfigParser()
@@ -51,10 +54,11 @@ def uploadJsonToDatalakeS3():
     secret_key = parser.get("aws_boto_credentials", "secret_key")
     bucket_name = parser.get("aws_boto_credentials", "bucket_name")
 
-    client = boto3.client("s3", aws_access_key_id=access_key,aws_secret_access_key=secret_key)
-    filenameInS3 = "bikes_" + time.strftime("%Y-%m-%dT%H:%M:%S")+".json"
+    client = boto3.client("s3", aws_access_key_id=access_key, aws_secret_access_key=secret_key)
+    filenameInS3 = "bikes_" + time.strftime("%Y-%m-%dT%H:%M:%S") + ".json"
     client.upload_file("bikes.json", bucket_name, filenameInS3)
     return filenameInS3
+
 
 def loadJsonToDatawarehouseSnowflake(filenameInS3):
     parser = configparser.ConfigParser()
@@ -64,14 +68,16 @@ def loadJsonToDatawarehouseSnowflake(filenameInS3):
     account_name = parser.get("snowflake_creds", "account_name")
     database = parser.get("snowflake_creds", "database")
 
-    snow_conn = snowflake.connector.connect(user=username, password=password, account=account_name, database=database, schema="ingestion")
+    snow_conn = snowflake.connector.connect(user=username, password=password, account=account_name, database=database,
+                                            schema="ingestion")
     cur = snow_conn.cursor()
-    sql = "insert into epam.ingestion.stage(raw, filename, copied_at) select *, '" + filenameInS3 + "', CURRENT_TIMESTAMP FROM '@bikes/"+filenameInS3+"'"
+    sql = "insert into epam.ingestion.stage(raw, filename, copied_at) select *, '" + filenameInS3 + "', CURRENT_TIMESTAMP FROM '@bikes/" + filenameInS3 + "'"
     cur.execute(sql)
     cur.close()
 
-def transformCopiedData(filename):
-    dimBikesSql = """
+
+def transformCopiedData(filename, isFullLoad):
+    insertA = """
         insert into datamodel.dim_bike(id, description, frame_model, manufacturer_name, serial, valid_from, valid_to, valid)
         select 
             raw:id,
@@ -84,6 +90,7 @@ def transformCopiedData(filename):
             true
         from ingestion.stage;
         """
+
     parser = configparser.ConfigParser()
     parser.read("pipeline.conf")
     username = parser.get("snowflake_creds", "username")
@@ -93,13 +100,10 @@ def transformCopiedData(filename):
 
     snow_conn = snowflake.connector.connect(user=username, password=password, account=account_name, database=database, schema="ingestion")
     cur = snow_conn.cursor()
-    cur.execute(dimBikesSql)
-
-
-
-
-
+    sql = "insert into epam.ingestion.stage(raw, filename, copied_at) select *, '" + filenameInS3 + "', CURRENT_TIMESTAMP FROM '@bikes/" + filenameInS3 + "'"
+    cur.execute(sql)
     cur.close()
+
 
 if __name__ == '__main__':
     # extract
@@ -111,4 +115,4 @@ if __name__ == '__main__':
     loadJsonToDatawarehouseSnowflake(filenameInS3)
     # transform (our events are about stolen bikes, so we will use factless tables, there is nothing special to meassure about this events)
     transformCopiedData(filenameInS3)
-     
+
