@@ -9,34 +9,33 @@ import snowflake.connector
 def extractJsonFromRestApi():
     # Example of bike info returned
     # {
-    #     "date_stolen": 1627232851,
-    #     "description": null,
-    #     "frame_colors": [
-    #         "Teal"
-    #     ],
-    #     "frame_model": "Lux XE",
-    #     "id": 1109834,
+    #     "date_stolen": 1627241794,
+    #     "description": "editor's note - serial entered as \"0106\" but this is incomplete",
+    #     "frame_colors":
+    #         [
+    #             "Black"
+    #         ],
+    #     "frame_model": "Turbo X",
+    #     "id": 1109965,
     #     "is_stock_img": false,
     #     "large_img": null,
     #     "location_found": null,
-    #     "manufacturer_name": "Diamondback",
+    #     "manufacturer_name": "Specialized",
     #     "external_id": null,
     #     "registry_name": null,
     #     "registry_url": null,
-    #     "serial": "DAF15F015598",
+    #     "serial": "Unknown",
     #     "status": null,
     #     "stolen": true,
-    #     "stolen_location": "York, PA - US",
+    #     "stolen_location": "Langley, WA - US",
     #     "thumb": null,
-    #     "title": "2016 Diamondback Lux XE",
-    #     "url": "https://bikeindex.org/bikes/1109834",
+    #     "title": "2016 Specialized Turbo X",
+    #     "url": "https://bikeindex.org/bikes/1109965",
     #     "year": 2016
-    # },
+    # }
 
     urlSearch = "https://bikeindex.org:443/api/v3/search?page=1&per_page=25&location=IP&distance=10&stolenness=all"
-    urlBikeDetail = "https://bikeindex.org:443/api/v3/bikes/"
-    bikes = seq(requests.get(urlSearch).json()['bikes'])
-    return bikes.map(lambda bike: requests.get(urlBikeDetail + str(bike['id'])).json())
+    return seq(requests.get(urlSearch).json()['bikes'])
 
 def writeJsonFile(dataJson):
     with open('bikes.json', 'w') as file:
@@ -73,7 +72,7 @@ def loadJsonToDatawarehouseSnowflake(filenameInS3):
     cur.close()
 
 def transformCopiedData(filename):
-
+    return
 
 if __name__ == '__main__':
     # extract
