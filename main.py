@@ -66,7 +66,7 @@ def loadJsonToDatawarehouseSnowflake(filenameInS3):
 
     snow_conn = snowflake.connector.connect(user=username, password=password, account=account_name, database=database, schema="ingestion")
     cur = snow_conn.cursor()
-    sql = "insert into epam.ingestion.stage(raw, filename, copied_at) select *, '" + filenameInS3 + "', CURRENT_TIMESTAMP FROM '@bikes/'"
+    sql = "insert into epam.ingestion.stage(raw, filename, copied_at) select *, '" + filenameInS3 + "', CURRENT_TIMESTAMP FROM '@bikes/"+filenameInS3+"'"
     cur.execute(sql)
     cur.close()
 
