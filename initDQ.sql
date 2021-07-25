@@ -22,21 +22,49 @@ CREATE OR REPLACE TABLE stage (
 );
 
 -- create epam.datamodel.dim_bike table
-CREATE TABLE dim_bike(
-  id integer autoincrement primary key,
-  desription    VARCHAR,
+CREATE or REPLACE TABLE dim_bike(
+  surrogateId integer autoincrement primary key,
+  id varchar unique,
+  description    VARCHAR,
   frame_model VARCHAR,
   manufacturer_name VARCHAR,
-  serial VARCHAR
+  serial VARCHAR,
+  valid_from datetime not null,
+  valid_to datetime not null,
+  valid boolean not null
 );
 
--- populate epam.datamodel.dim_bike with data from epam.ingestion.stage
-insert into datamodel
-.dim_bike
-select
-    raw:id,
-    raw:description,
-    raw:frame_model,
-    raw:manufacturer_name,
-    raw:serial
-from ingestion.stage;
+-- create epam.datamodel.dim_datetime table
+CREATE OR REPLACE TABLE dim_datetime (
+        MY_DATE          DATE        NOT NULL,
+        YEAR             SMALLINT    NOT NULL
+        MONTH            SMALLINT    NOT NULL,
+        MONTH_NAME       CHAR(3)     NOT NULL,
+        DAY_OF_MON       SMALLINT    NOT NULL,
+        DAY_OF_WEEK      VARCHAR(9)  NOT NULL,
+        WEEK_OF_YEAR     SMALLINT    NOT NULL,
+        DAY_OF_YEAR      SMALLINT    NOT NULL
+    )
+    AS
+      WITH CTE_MY_DATE AS (
+        SELECT DATEADD(DAY, SEQ4(), '2000-01-01') AS MY_DATE
+          FROM TABLE(GENERATOR(ROWCOUNT=>10000))  -- Number of days after reference date in previous line
+      )
+      SELECT MY_DATE
+            ,YEAR(MY_DATE)
+            ,MONTH(MY_DATE)
+            ,MONTHNAME(MY_DATE)
+            ,DAY(MY_DATE)
+            ,DAYOFWEEK(MY_DATE)
+            ,WEEKOFYEAR(MY_DATE)
+            ,DAYOFYEAR(MY_DATE)
+        FROM CTE_MY_DATE;
+
+
+
+CREATE or REPLACE TABLE factless_bikes_stolen(
+  surrogateId int autoincrement primary key,
+  bikeid int references dim_bike(surrogateId),
+  date int references dim_date(surrogateId),
+);
+

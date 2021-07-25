@@ -71,7 +71,16 @@ def loadJsonToDatawarehouseSnowflake(filenameInS3):
     cur.close()
 
 def transformCopiedData(filename):
-    return
+    sqlAllBikes = """
+        insert into datamodel.dim_bike(id, description, frame_model, manufacturer_name, serial)
+        select 
+            raw:id,
+            raw:description,
+            raw:frame_model,
+            raw:manufacturer_name,
+            raw:serial
+        from ingestion.stage;
+        """
 
 if __name__ == '__main__':
     # extract
