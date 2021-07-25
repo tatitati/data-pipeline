@@ -20,3 +20,22 @@ CREATE OR REPLACE TABLE stage (
   filename varchar not null,
   copied_at datetime not null
 );
+
+-- transformations
+CREATE TABLE dim_bike(
+  id integer autoincrement primary key,
+  desription    VARCHAR,
+  frame_model VARCHAR,
+  manufacturer_name VARCHAR,
+  serial VARCHAR
+);
+
+insert into datamodel
+.dim_bike
+select
+    raw:id,
+    raw:description,
+    raw:frame_model,
+    raw:manufacturer_name,
+    raw:serial
+from ingestion.stage;
