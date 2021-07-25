@@ -1,5 +1,5 @@
 use epam;
-CREATE SCHEMA myschema;
+CREATE SCHEMA ingestion;
 
 -- stage
 CREATE OR REPLACE FILE FORMAT json_format
