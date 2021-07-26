@@ -18,11 +18,12 @@ CREATE STAGE bikes
 drop table if exists epam.ingestion.stage;
 drop table if exists epam.datamodel.dim_bike;
 drop table if exists epam.datamodel.dim_date;
-drop table if exists epam.datamodel.factless_bikes_stolen;
+drop table if exists epam.datamodzel.factless_bikes_stolen;
 
 CREATE OR REPLACE TABLE epam.ingestion.stage (
   raw variant not null,
   filename varchar not null,
+  amount_records int not null,
   copied_at datetime not null
 );
 

@@ -60,11 +60,14 @@ def extractJsonFromRestApi():
     return seq(requests.get(urlSearch).json()['bikes'])
 
 def writeJsonFile(dataJson):
+    amountRecords = 0
     with open('bikes.json', 'w') as file:
         for entry in dataJson.sequence:
             file.write(json.dumps(entry))
             file.write("\n")
+            amountRecords += 1
     file.close()
+    return amountRecords
 
 def uploadJsonToDatalakeS3():
     s3 = getS3Client()
@@ -72,8 +75,15 @@ def uploadJsonToDatalakeS3():
     s3.upload_file("bikes.json", "b-i-k-e-s", filenameInS3)
     return filenameInS3
 
-def loadJsonToDatawarehouseSnowflake(filenameInS3):
-    sql = "insert into epam.ingestion.stage(raw, filename, copied_at) select *, '" + filenameInS3 + "', CURRENT_TIMESTAMP FROM '@bikes/"+filenameInS3+"'"
+def loadJsonToDatawarehouseSnowflake(filenameInS3, amountOfRecords):
+    sql = f"""insert into epam.ingestion.stage(raw, filename, amount_records, copied_at) 
+            select 
+                *, 
+                '{filenameInS3}', 
+                {amountOfRecords},
+                CURRENT_TIMESTAMP 
+            FROM '@bikes/{filenameInS3}'"""
+
     executeQuery("ingestion", sql)
 
 def populateDimBike():
@@ -116,10 +126,10 @@ if __name__ == '__main__':
     # extract
     bikesJson = extractJsonFromRestApi()
     # load to s3
-    writeJsonFile(bikesJson)
+    amountRecords = writeJsonFile(bikesJson)
     filenameInS3 = uploadJsonToDatalakeS3()
     # load to DW
-    loadJsonToDatawarehouseSnowflake(filenameInS3)
+    loadJsonToDatawarehouseSnowflake(filenameInS3, amountRecords)
     # Transform
     populateDimBike()
     populateFactlessBikeStolen()
