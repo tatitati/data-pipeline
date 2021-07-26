@@ -118,9 +118,8 @@ if __name__ == '__main__':
     # load
     writeJsonFile(bikesJson)
     filenameInS3 = uploadJsonToDatalakeS3()
-    # instead of running this daily, this can be simplified using Snowpipes, so when a new file pop up in S3, the copy process is executed
     loadJsonToDatawarehouseSnowflake(filenameInS3)
-    # transform (our events are about stolen bikes, so we will use factless tables, there is nothing special to meassure about this events)
+    # Transform
     populateDimBike()
     populateFactlessBikeStolen()
 
