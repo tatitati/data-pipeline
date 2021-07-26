@@ -14,15 +14,19 @@ CREATE STAGE bikes
     CREDENTIALS=(AWS_KEY_ID='xxxx' AWS_SECRET_KEY='xxxxx')
     FILE_FORMAT = json_format;
 
--- create epam.ingestion.stage table
-CREATE OR REPLACE TABLE stage (
+
+drop table if exists epam.ingestion.stage;
+drop table if exists epam.datamodel.dim_bike;
+drop table if exists epam.datamodel.dim_date;
+drop table if exists epam.datamodel.factless_bikes_stolen;
+
+CREATE OR REPLACE TABLE epam.ingestion.stage (
   raw variant not null,
   filename varchar not null,
   copied_at datetime not null
 );
 
--- create epam.datamodel.dim_bike table
-CREATE or REPLACE TABLE dim_bike(
+CREATE or REPLACE TABLE epam.datamodel.dim_bike(
   surrogateId integer autoincrement primary key,
   id varchar unique,
   description    VARCHAR,
@@ -35,9 +39,8 @@ CREATE or REPLACE TABLE dim_bike(
   valid boolean not null
 );
 
--- create epam.datamodel.dim_datetime table
-CREATE OR REPLACE TABLE dim_date (
-       MY_DATE          DATE        NOT NULL
+CREATE OR REPLACE TABLE epam.datamodel.dim_date (
+       MY_DATE          DATE        NOT NULL primary key
       ,YEAR             SMALLINT    NOT NULL
       ,MONTH            SMALLINT    NOT NULL
       ,MONTH_NAME       CHAR(3)     NOT NULL
@@ -61,10 +64,8 @@ CREATE OR REPLACE TABLE dim_date (
             ,DAYOFYEAR(MY_DATE)
         FROM CTE_MY_DATE;
 
-
-
-CREATE or REPLACE TABLE factless_bikes_stolen(
+CREATE or REPLACE TABLE epam.datamodel.factless_bikes_stolen(
   surrogateId int autoincrement primary key,
-  bikeid int references dim_bike(surrogateId),
-  date date references dim_date(date) -- this might allow me to create partitioned tables in the fact table
+  bikeid int references epam.datamodel.dim_bike(surrogateId),
+  date date references epam.datamodel.dim_date(my_date) -- this might allow me to create partitioned tables in the fact table
 );
