@@ -115,9 +115,10 @@ def populateFactlessBikeStolen():
 if __name__ == '__main__':
     # extract
     bikesJson = extractJsonFromRestApi()
-    # load
+    # load to s3
     writeJsonFile(bikesJson)
     filenameInS3 = uploadJsonToDatalakeS3()
+    # load to DW
     loadJsonToDatawarehouseSnowflake(filenameInS3)
     # Transform
     populateDimBike()
