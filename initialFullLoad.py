@@ -6,6 +6,28 @@ import configparser
 import time
 import snowflake.connector
 
+def getS3Client():
+    parser = configparser.ConfigParser()
+    parser.read("pipeline.conf")
+    access_key = parser.get("aws_boto_credentials", "access_key")
+    secret_key = parser.get("aws_boto_credentials", "secret_key")
+
+    client = boto3.client("s3", aws_access_key_id=access_key, aws_secret_access_key=secret_key)
+    return client
+
+def executeQuery(schema, query):
+    parser = configparser.ConfigParser()
+    parser.read("pipeline.conf")
+    username = parser.get("snowflake_creds", "username")
+    password = parser.get("snowflake_creds", "password")
+    account_name = parser.get("snowflake_creds", "account_name")
+    database = parser.get("snowflake_creds", "database")
+
+    snow_conn = snowflake.connector.connect(user=username, password=password, account=account_name, database=database,schema=schema)
+    cur = snow_conn.cursor()
+    cur.execute(query)
+    cur.close()
+
 def extractJsonFromRestApi():
     # Example of bike info returned
     # {
@@ -45,30 +67,14 @@ def writeJsonFile(dataJson):
     file.close()
 
 def uploadJsonToDatalakeS3():
-    parser = configparser.ConfigParser()
-    parser.read("pipeline.conf")
-    access_key = parser.get("aws_boto_credentials", "access_key")
-    secret_key = parser.get("aws_boto_credentials", "secret_key")
-    bucket_name = parser.get("aws_boto_credentials", "bucket_name")
-
-    client = boto3.client("s3", aws_access_key_id=access_key,aws_secret_access_key=secret_key)
+    s3 = getS3Client()
     filenameInS3 = "bikes_" + time.strftime("%Y-%m-%dT%H:%M:%S")+".json"
-    client.upload_file("bikes.json", bucket_name, filenameInS3)
+    s3.upload_file("bikes.json", "b-i-k-e-s", filenameInS3)
     return filenameInS3
 
 def loadJsonToDatawarehouseSnowflake(filenameInS3):
-    parser = configparser.ConfigParser()
-    parser.read("pipeline.conf")
-    username = parser.get("snowflake_creds", "username")
-    password = parser.get("snowflake_creds", "password")
-    account_name = parser.get("snowflake_creds", "account_name")
-    database = parser.get("snowflake_creds", "database")
-
-    snow_conn = snowflake.connector.connect(user=username, password=password, account=account_name, database=database, schema="ingestion")
-    cur = snow_conn.cursor()
     sql = "insert into epam.ingestion.stage(raw, filename, copied_at) select *, '" + filenameInS3 + "', CURRENT_TIMESTAMP FROM '@bikes/"+filenameInS3+"'"
-    cur.execute(sql)
-    cur.close()
+    executeQuery("ingestion", sql)
 
 def populateDimBike():
     dimBikesSql = """
@@ -84,17 +90,8 @@ def populateDimBike():
             true
         from ingestion.stage;
         """
-    parser = configparser.ConfigParser()
-    parser.read("pipeline.conf")
-    username = parser.get("snowflake_creds", "username")
-    password = parser.get("snowflake_creds", "password")
-    account_name = parser.get("snowflake_creds", "account_name")
-    database = parser.get("snowflake_creds", "database")
+    executeQuery("ingestion", dimBikesSql)
 
-    snow_conn = snowflake.connector.connect(user=username, password=password, account=account_name, database=database, schema="ingestion")
-    cur = snow_conn.cursor()
-    cur.execute(dimBikesSql)
-    cur.close()
 
 def populateFactlessBikeStolen():
         factlesStolenBike = """            
@@ -112,17 +109,8 @@ def populateFactlessBikeStolen():
                 end as location             
             from ingestion.stage;
             """
-        parser = configparser.ConfigParser()
-        parser.read("pipeline.conf")
-        username = parser.get("snowflake_creds", "username")
-        password = parser.get("snowflake_creds", "password")
-        account_name = parser.get("snowflake_creds", "account_name")
-        database = parser.get("snowflake_creds", "database")
 
-        snow_conn = snowflake.connector.connect(user=username, password=password, account=account_name,database=database, schema="ingestion")
-        cur = snow_conn.cursor()
-        cur.execute(factlesStolenBike)
-        cur.close()
+        executeQuery("ingestion", factlesStolenBike)
 
 if __name__ == '__main__':
     # extract
