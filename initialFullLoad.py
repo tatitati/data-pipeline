@@ -97,14 +97,20 @@ def populateDimBike():
     cur.close()
 
 def populateFactlessBikeStolen():
-        factlesStolenBike = """
-            insert into datamodel.factless_bikes_stolen(bikeid, date, time)
+        factlesStolenBike = """            
+            insert into datamodel.factless_bikes_stolen(bikeid, date, fact, location)
             select
                 raw:id,
                 date(to_timestamp(raw:date_stolen)),
-                time(to_timestamp(raw:date_stolen))
-            from ingestion.stage
-            where raw:stolen = true;
+                case 
+                    when raw:stolen = 'true' then 'stolen'
+                    else 'found'
+                end as fact,
+                case 
+                    when raw:stolen = 'true' then raw:stolen_location
+                    else raw:location_found
+                end as location             
+            from ingestion.stage;
             """
         parser = configparser.ConfigParser()
         parser.read("pipeline.conf")

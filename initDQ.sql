@@ -67,5 +67,7 @@ CREATE OR REPLACE TABLE epam.datamodel.dim_date (
 CREATE or REPLACE TABLE epam.datamodel.factless_bikes_stolen(
   surrogateId int autoincrement primary key,
   bikeid int references epam.datamodel.dim_bike(surrogateId),
-  date date references epam.datamodel.dim_date(my_date) -- this might allow me to create partitioned tables in the fact table
+  date date references epam.datamodel.dim_date(my_date), -- this might allow me to create partitioned tables in the fact table
+  fact varchar,
+  location varchar
 );
