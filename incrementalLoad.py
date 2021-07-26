@@ -76,43 +76,26 @@ def loadJsonToDatawarehouseSnowflake(filenameInS3):
     cur.close()
 
 
-def transformCopiedData(filename, isFullLoad):
-    insertA = """
-        insert into datamodel.dim_bike(id, description, frame_model, manufacturer_name, serial, valid_from, valid_to, valid)
-        select 
-            raw:id,
-            raw:description,
-            raw:frame_model,
-            raw:manufacturer_name,
-            raw:serial,
-            CURRENT_TIMESTAMP,
-            '9999-02-20 00:00:00.000' as datetime,
-            true
-        from ingestion.stage;
-        """
-
-    parser = configparser.ConfigParser()
-    parser.read("pipeline.conf")
-    username = parser.get("snowflake_creds", "username")
-    password = parser.get("snowflake_creds", "password")
-    account_name = parser.get("snowflake_creds", "account_name")
-    database = parser.get("snowflake_creds", "database")
-
-    snow_conn = snowflake.connector.connect(user=username, password=password, account=account_name, database=database, schema="ingestion")
-    cur = snow_conn.cursor()
-    sql = "insert into epam.ingestion.stage(raw, filename, copied_at) select *, '" + filenameInS3 + "', CURRENT_TIMESTAMP FROM '@bikes/" + filenameInS3 + "'"
-    cur.execute(sql)
-    cur.close()
-
+def ingestNewData():
+    # TODO
+    # Basically I want to use SCD 2 for changes in dimesion tables to keep the history of these dimensions while I keep appending to fact tables stolen bikes
+    # dim_date is not going to change too much (in case we want to update it we can run a simple script that add more dates)
+    # For dim_bike we have to join new ingested data (stage table) with dim_bike and see if we already have a bike with that id. In case we receive a new bike
+    # we have to add it to the dim_bike.
 
 if __name__ == '__main__':
-    # extract
     bikesJson = extractJsonFromRestApi()
-    # load
     writeJsonFile(bikesJson)
     filenameInS3 = uploadJsonToDatalakeS3()
-    # instead of running this daily, this can be simplified using Snowpipes, so when a new file pop up in S3, the copy process is executed
     loadJsonToDatawarehouseSnowflake(filenameInS3)
-    # transform (our events are about stolen bikes, so we will use factless tables, there is nothing special to meassure about this events)
-    transformCopiedData(filenameInS3)
+    ingestNewData()
+
+    # TODO: read below
+    # ================
+    # This would allow to answer a few questions:
+    # - When people steal bikes?   join of factles and dim_table
+    # - what brands are stealing?: join of dim_bike, factles
+    # - what colors are the favourite to steal?: join of dim_bike and factless
+    # - how many bikes were stolen in between two dates?: join of factles and dim_date
+
 
