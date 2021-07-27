@@ -62,7 +62,12 @@ def transformStagedToBike():
         MERGE INTO epam.datamodel.dim_bike db USING ingestion.stage stage
             ON stage:raw:id = bike.id
         WHEN MATCHED THEN 
-            update datamodel.dim_bike set valid_to=CURRENT_TIMESTAMP(),valid=false            
+            update epam.datamodel.dim_bike 
+            set 
+                valid_to = CURRENT_TIMESTAMP(),
+                valid = false
+            where 
+                datamodel.dim_bike.id = stage:raw:id and datamodel.dim_bike.valid = true
         WHEN NOT MATCHED THEN 
             insert into datamodel.dim_bike(id, description, frame_model, manufacturer_name, serial, valid_from, valid_to, valid)
             select 
