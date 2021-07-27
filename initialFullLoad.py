@@ -12,8 +12,7 @@ def getS3Client():
     access_key = parser.get("aws_boto_credentials", "access_key")
     secret_key = parser.get("aws_boto_credentials", "secret_key")
 
-    client = boto3.client("s3", aws_access_key_id=access_key, aws_secret_access_key=secret_key)
-    return client
+    return boto3.client("s3", aws_access_key_id=access_key, aws_secret_access_key=secret_key)
 
 def executeQuery(schema, query):
     parser = configparser.ConfigParser()
