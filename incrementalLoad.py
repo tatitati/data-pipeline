@@ -6,6 +6,8 @@ import configparser
 import time
 import snowflake.connector
 
+url = "https://bikeindex.org:443/api/v3/search?page=1&per_page=15&location=IP&distance=10&stolenness=all"
+
 def getS3Client():
     parser = configparser.ConfigParser()
     parser.read("pipeline.conf")
@@ -27,9 +29,8 @@ def executeQuery(schema, query):
     cur.execute(query)
     cur.close()
 
-def extractJsonFromRestApi():
-    urlSearch = "https://bikeindex.org:443/api/v3/search?page=1&per_page=15&location=IP&distance=10&stolenness=all"
-    return seq(requests.get(urlSearch).json()['bikes'])
+def extractJsonFromRestApi():    
+    return seq(requests.get(url).json()['bikes'])
 
 def writeJsonFile(dataJson):
     amountRecords = 0
@@ -47,28 +48,28 @@ def uploadJsonToDatalakeS3():
     s3.upload_file("bikes.json", "b-i-k-e-s", filenameInS3)
     return filenameInS3
 
-def loadJsonToDatawarehouseSnowflake(filenameInS3):
-    sql = f"""insert into epam.ingestion.stage(raw, filename, copied_at) 
+def loadJsonToDatawarehouseSnowflake(filenameInS3, url):
+    sql = f"""insert into epam.ingestion.stage(raw, filename, copied_at, url) 
             select 
                 *, 
                 '{filenameInS3}', 
-                CURRENT_TIMESTAMP 
+                CURRENT_TIMESTAMP,
+                '{url}'
             FROM '@bikes/{filenameInS3}'"""
 
     executeQuery("ingestion", sql)
 
 def transformStagedToBike():
-    dimBikesSql = """        
-        MERGE INTO epam.datamodel.dim_bike db USING ingestion.stage stage
-            ON stage:raw:id = bike.id
-        WHEN MATCHED THEN 
-            update epam.datamodel.dim_bike 
-            set 
-                valid_to = CURRENT_TIMESTAMP(),
-                valid = false
-            where 
-                datamodel.dim_bike.id = stage:raw:id and datamodel.dim_bike.valid = true
-        WHEN NOT MATCHED THEN 
+    inactiveBike = """        
+        MERGE INTO epam.datamodel.dim_bike as dim_bike USING (select * from ingestion.stage where ingestion.stage.integrated_at is null) as stage ON stage.raw:id = dim_bike.id
+        WHEN MATCHED and valid=true THEN 
+            update set valid_to = CURRENT_TIMESTAMP(), valid = false;
+        When not matched then
+            insert (id, description, frame_model, manufacturer_name, serial, valid_from, valid_to, valid) value (raw:id,raw:description,raw:frame_model,raw:manufacturer_name,raw:serial, CURRENT_TIMESTAMP, '9999-02-20 00:00:00.000' as datetime, true)
+        """
+    executeQuery("ingestion", inactiveBike)
+
+    insertNewOrUpdated = """
             insert into datamodel.dim_bike(id, description, frame_model, manufacturer_name, serial, valid_from, valid_to, valid)
             select 
                 raw:id,
@@ -81,7 +82,7 @@ def transformStagedToBike():
                 true
             from ingestion.stage;
         """
-    executeQuery("ingestion", dimBikesSql)
+    executeQuery("ingestion", insertNewOrUpdated)
 
 def populateFactlessBikeStolen():
         factlesStolenBike = """            
@@ -111,7 +112,7 @@ if __name__ == '__main__':
     writeJsonFile(bikesJson)
     filenameInS3 = uploadJsonToDatalakeS3()
     # # load to DW
-    loadJsonToDatawarehouseSnowflake(filenameInS3)
+    loadJsonToDatawarehouseSnowflake(filenameInS3, url)
     # Transform: Update bike dim
     transformStagedToBike()
     # Transform: Add to factless table

@@ -6,6 +6,8 @@ import configparser
 import time
 import snowflake.connector
 
+url = "https://bikeindex.org:443/api/v3/search?page=1&per_page=25&location=IP&distance=10&stolenness=all"
+
 def getS3Client():
     parser = configparser.ConfigParser()
     parser.read("pipeline.conf")
@@ -27,9 +29,8 @@ def executeQuery(schema, query):
     cur.execute(query)
     cur.close()
 
-def extractJsonFromRestApi():
-    urlSearch = "https://bikeindex.org:443/api/v3/search?page=1&per_page=25&location=IP&distance=10&stolenness=all"
-    return seq(requests.get(urlSearch).json()['bikes'])
+def extractJsonFromRestApi():    
+    return seq(requests.get(url).json()['bikes'])
 
 def writeJsonFile(dataJson):
     amountRecords = 0
@@ -47,13 +48,14 @@ def uploadJsonToDatalakeS3():
     s3.upload_file("bikes.json", "b-i-k-e-s", filenameInS3)
     return filenameInS3
 
-def loadJsonToDatawarehouseSnowflake(filenameInS3):
-    sql = f"""insert into epam.ingestion.stage(raw, filename, copied_at, integrated_at) 
+def loadJsonToDatawarehouseSnowflake(filenameInS3, url):
+    sql = f"""insert into epam.ingestion.stage(raw, filename, copied_at, integrated_at, url) 
             select 
                 *, 
-                '{filenameInS3}', 
+                's3://b-i-k-e-s/{filenameInS3}', 
                 CURRENT_TIMESTAMP,
-                NULL
+                NULL,
+                '{url}'
             FROM '@bikes/{filenameInS3}'"""
 
     executeQuery("ingestion", sql)
@@ -111,7 +113,7 @@ if __name__ == '__main__':
     writeJsonFile(bikesJson)
     filenameInS3 = uploadJsonToDatalakeS3()
     # load to DW
-    loadJsonToDatawarehouseSnowflake(filenameInS3)
+    loadJsonToDatawarehouseSnowflake(filenameInS3, url)
     # Transform
     populateDimBike()
     populateFactlessBikeStolen()
