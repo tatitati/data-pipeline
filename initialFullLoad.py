@@ -74,12 +74,11 @@ def uploadJsonToDatalakeS3():
     s3.upload_file("bikes.json", "b-i-k-e-s", filenameInS3)
     return filenameInS3
 
-def loadJsonToDatawarehouseSnowflake(filenameInS3, amountOfRecords):
-    sql = f"""insert into epam.ingestion.stage(raw, filename, amount_records, copied_at) 
+def loadJsonToDatawarehouseSnowflake(filenameInS3):
+    sql = f"""insert into epam.ingestion.stage(raw, filename, copied_at) 
             select 
                 *, 
                 '{filenameInS3}', 
-                {amountOfRecords},
                 CURRENT_TIMESTAMP 
             FROM '@bikes/{filenameInS3}'"""
 
@@ -125,10 +124,10 @@ if __name__ == '__main__':
     # extract
     bikesJson = extractJsonFromRestApi()
     # load to s3
-    amountRecords = writeJsonFile(bikesJson)
+    writeJsonFile(bikesJson)
     filenameInS3 = uploadJsonToDatalakeS3()
     # load to DW
-    loadJsonToDatawarehouseSnowflake(filenameInS3, amountRecords)
+    loadJsonToDatawarehouseSnowflake(filenameInS3)
     # Transform
     populateDimBike()
     populateFactlessBikeStolen()
