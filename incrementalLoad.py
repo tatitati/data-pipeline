@@ -83,24 +83,24 @@ def transformStagedToBike():
     executeQuery("ingestion", insertNewOrUpdated)
 
 def populateFactlessBikeStolen():
-        factlesStolenBike = """            
-            insert into datamodel.factless_bikes_stolen(bikeid, date, fact, location)
-            select
-                raw:id,
-                date(to_timestamp(raw:date_stolen)),
-                case 
-                    when raw:stolen = 'true' then 'stolen'
-                    else 'found'
-                end as fact,
-                case 
-                    when raw:stolen = 'true' then raw:stolen_location
-                    else raw:location_found
-                end as location             
-            from ingestion.stage
-            where integrated_at is null;
-            """
+    factlesStolenBike = """            
+        insert into datamodel.factless_bikes_stolen(bikeid, date, fact, location)
+        select
+            raw:id,
+            date(to_timestamp(raw:date_stolen)),
+            case 
+                when raw:stolen = 'true' then 'stolen'
+                else 'found'
+            end as fact,
+            case 
+                when raw:stolen = 'true' then raw:stolen_location
+                else raw:location_found
+            end as location             
+        from ingestion.stage
+        where integrated_at is null;
+        """
 
-        executeQuery("ingestion", factlesStolenBike)
+    executeQuery("ingestion", factlesStolenBike)
 
 def markStageIntegrationCompleted():
     factlesStolenBike = """            
