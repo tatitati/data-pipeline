@@ -47,7 +47,7 @@ def uploadJsonToDatalakeS3():
     s3.upload_file("bikes.json", "b-i-k-e-s", filenameInS3)
     return filenameInS3
 
-def loadJsonToDatawarehouseSnowflake(filenameInS3, amountOfRecords):
+def loadJsonToDatawarehouseSnowflake(filenameInS3):
     sql = f"""insert into epam.ingestion.stage(raw, filename, copied_at) 
             select 
                 *, 
@@ -77,9 +77,6 @@ def transformStagedToBike():
             from ingestion.stage;
         """
     executeQuery("ingestion", dimBikesSql)
-
-def transformStagedToFactless():
-    sql = """asdf"""
 
 def populateFactlessBikeStolen():
         factlesStolenBike = """            
@@ -113,5 +110,5 @@ if __name__ == '__main__':
     # Transform: Update bike dim
     transformStagedToBike()
     # Transform: Add to factless table
-    transformStagedToFactless()
+    populateFactlessBikeStolen()
 
