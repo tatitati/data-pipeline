@@ -63,9 +63,7 @@ def transformStagedToBike():
     inactiveBike = """        
         MERGE INTO epam.datamodel.dim_bike as dim_bike USING (select * from ingestion.stage where ingestion.stage.integrated_at is null) as stage ON stage.raw:id = dim_bike.id
         WHEN MATCHED and valid=true THEN 
-            update set valid_to = CURRENT_TIMESTAMP(), valid = false;
-        When not matched then
-            insert (id, description, frame_model, manufacturer_name, serial, valid_from, valid_to, valid) value (raw:id,raw:description,raw:frame_model,raw:manufacturer_name,raw:serial, CURRENT_TIMESTAMP, '9999-02-20 00:00:00.000' as datetime, true)
+            update set valid_to = CURRENT_TIMESTAMP(), valid = false;        
         """
     executeQuery("ingestion", inactiveBike)
 
@@ -80,7 +78,7 @@ def transformStagedToBike():
                 CURRENT_TIMESTAMP,
                 '9999-02-20 00:00:00.000' as datetime,
                 true
-            from ingestion.stage;
+            from ingestion.stagev;
         """
     executeQuery("ingestion", insertNewOrUpdated)
 
@@ -104,6 +102,15 @@ def populateFactlessBikeStolen():
 
         executeQuery("ingestion", factlesStolenBike)
 
+def markStageIntegrationCompleted():
+    factlesStolenBike = """            
+        update epam.ingestion.stage
+        set integrated_at =  CURRENT_TIMESTAMP()
+        where integrated_at is null
+        """
+
+    executeQuery("ingestion", factlesStolenBike)        
+
 if __name__ == '__main__':
     # extract
     bikesJson = extractJsonFromRestApi()
@@ -118,3 +125,5 @@ if __name__ == '__main__':
     # Transform: Add to factless table
     populateFactlessBikeStolen()
 
+    # mark staged integration completed
+    markStageIntegrationCompleted()
