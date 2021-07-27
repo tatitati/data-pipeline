@@ -75,11 +75,12 @@ def uploadJsonToDatalakeS3():
     return filenameInS3
 
 def loadJsonToDatawarehouseSnowflake(filenameInS3):
-    sql = f"""insert into epam.ingestion.stage(raw, filename, copied_at) 
+    sql = f"""insert into epam.ingestion.stage(raw, filename, copied_at, integrated_at) 
             select 
                 *, 
                 '{filenameInS3}', 
-                CURRENT_TIMESTAMP 
+                CURRENT_TIMESTAMP,
+                NULL
             FROM '@bikes/{filenameInS3}'"""
 
     executeQuery("ingestion", sql)
@@ -102,23 +103,33 @@ def populateDimBike():
 
 
 def populateFactlessBikeStolen():
-        factlesStolenBike = """            
-            insert into datamodel.factless_bikes_stolen(bikeid, date, fact, location)
-            select
-                raw:id,
-                date(to_timestamp(raw:date_stolen)),
-                case 
-                    when raw:stolen = 'true' then 'stolen'
-                    else 'found'
-                end as fact,
-                case 
-                    when raw:stolen = 'true' then raw:stolen_location
-                    else raw:location_found
-                end as location             
-            from ingestion.stage;
-            """
+    factlesStolenBike = """            
+        insert into datamodel.factless_bikes_stolen(bikeid, date, fact, location)
+        select
+            raw:id,
+            date(to_timestamp(raw:date_stolen)),
+            case 
+                when raw:stolen = 'true' then 'stolen'
+                else 'found'
+            end as fact,
+            case 
+                when raw:stolen = 'true' then raw:stolen_location
+                else raw:location_found
+            end as location             
+        from ingestion.stage;
+        """
 
-        executeQuery("ingestion", factlesStolenBike)
+    executeQuery("ingestion", factlesStolenBike)
+
+def markStageIntegrationCompleted():
+    factlesStolenBike = """            
+        update epam.ingestion.stage
+        set integrated_at =  CURRENT_TIMESTAMP()
+        where integrated_at is null
+        """
+
+    executeQuery("ingestion", factlesStolenBike)
+
 
 if __name__ == '__main__':
     # extract
@@ -132,3 +143,5 @@ if __name__ == '__main__':
     populateDimBike()
     populateFactlessBikeStolen()
 
+    # mark staged integration completed
+    markStageIntegrationCompleted()
