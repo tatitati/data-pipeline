@@ -57,17 +57,29 @@ def loadJsonToDatawarehouseSnowflake(filenameInS3, amountOfRecords):
 
     executeQuery("ingestion", sql)
 
-def transformStagedDate():
+def transformStagedToBike():
     dimBikesSql = """        
-        MERGE INTO target_table USING source_table 
-            ON target_table.id = source_table.id
+        MERGE INTO epam.datamodel.dim_bike db USING ingestion.stage stage
+            ON stage:raw:id = bike.id
         WHEN MATCHED THEN 
-            UPDATE SET target_table.description = source_table.description
+            update datamodel.dim_bike set valid_to=CURRENT_TIMESTAMP(),valid=false            
         WHEN NOT MATCHED THEN 
-            INSERT (ID, description) VALUES (source_table.id, source_table.description);
+            insert into datamodel.dim_bike(id, description, frame_model, manufacturer_name, serial, valid_from, valid_to, valid)
+            select 
+                raw:id,
+                raw:description,
+                raw:frame_model,
+                raw:manufacturer_name,
+                raw:serial,
+                CURRENT_TIMESTAMP,
+                '9999-02-20 00:00:00.000' as datetime,
+                true
+            from ingestion.stage;
         """
     executeQuery("ingestion", dimBikesSql)
 
+def transformStagedToFactless():
+    sql = """asdf"""
 
 def populateFactlessBikeStolen():
         factlesStolenBike = """            
@@ -94,10 +106,12 @@ if __name__ == '__main__':
     bikesJson = extractJsonFromRestApi()
 
     # load to s3
-    # writeJsonFile(bikesJson)
-    # filenameInS3 = uploadJsonToDatalakeS3()
+    writeJsonFile(bikesJson)
+    filenameInS3 = uploadJsonToDatalakeS3()
     # # load to DW
-    # loadJsonToDatawarehouseSnowflake(filenameInS3)
-    # # Transform
-    # transformStagedDate()
+    loadJsonToDatawarehouseSnowflake(filenameInS3)
+    # Transform: Update bike dim
+    transformStagedToBike()
+    # Transform: Add to factless table
+    transformStagedToFactless()
 
