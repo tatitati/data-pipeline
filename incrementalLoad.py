@@ -83,7 +83,8 @@ def populateFactlessBikeStolen():
                     when raw:stolen = 'true' then raw:stolen_location
                     else raw:location_found
                 end as location             
-            from ingestion.stage;
+            from ingestion.stage
+            where integrated_at is null;
             """
 
         executeQuery("ingestion", factlesStolenBike)
@@ -91,8 +92,7 @@ def populateFactlessBikeStolen():
 if __name__ == '__main__':
     # extract
     bikesJson = extractJsonFromRestApi()
-    for bike in bikesJson:
-        print(bike)
+
     # load to s3
     # writeJsonFile(bikesJson)
     # filenameInS3 = uploadJsonToDatalakeS3()
