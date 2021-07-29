@@ -2,7 +2,7 @@ use epam;
 
 drop table if exists epam.datamodel.dim_bike;
 drop table if exists epam.datamodel.dim_date;
-drop table if exists epam.datamodzel.factless_bikes_stolen;
+drop table if exists epam.datamodel.factless_bikes_stolen;
 
 CREATE or REPLACE TABLE epam.datamodel.dim_bike(
   surrogateId integer autoincrement primary key,
@@ -14,7 +14,8 @@ CREATE or REPLACE TABLE epam.datamodel.dim_bike(
   -- slow changing dimension (SCD) type 2
   valid_from datetime not null,
   valid_to datetime not null,
-  valid boolean not null
+  valid boolean not null,
+  entryHash varchar not null
 );
 
 CREATE OR REPLACE TABLE epam.datamodel.dim_date (
