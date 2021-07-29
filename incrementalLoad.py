@@ -85,7 +85,7 @@ def populateDimBike():
         """
     executeQuery("ingestion", markAsInactiveOutOfDate)
 
-    print(f"\t inserting updates of bikes...")
+    print(f"\t inserting updated bikes...")
     insertUpdated = """        
         insert into datamodel.dim_bike(id, description, frame_model, manufacturer_name, serial, valid_from, valid_to, isActive, entryHash)
             SELECT 
