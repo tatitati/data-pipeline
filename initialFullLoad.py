@@ -7,7 +7,7 @@ import time
 import snowflake.connector
 
 def url(page):
-    return f"https://bikeindex.org:443/api/v3/search?page=1&per_page={page}&location=IP&distance=100&stolenness=all"
+    return f"https://bikeindex.org:443/api/v3/search?page={page}&per_page=50&location=IP&distance=100&stolenness=all"
 
 def getS3Client():
     parser = configparser.ConfigParser()
@@ -31,7 +31,10 @@ def executeQuery(schema, query):
     cur.close()
 
 def extractJsonFromRestApi(url):    
-    return seq(requests.get(url).json()['bikes'])
+    print(f"extracting events from REST API: {url}")
+    events = seq(requests.get(url).json()['bikes'])
+    print(f"Events extracted: {events.len()}")
+    return events
 
 def writeJsonFile(dataJson):
     amountRecords = 0
