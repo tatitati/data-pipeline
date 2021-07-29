@@ -6,7 +6,8 @@ import configparser
 import time
 import snowflake.connector
 
-url = "https://bikeindex.org:443/api/v3/search?page=1&per_page=25&location=IP&distance=10&stolenness=all"
+def url(page):
+    return f"https://bikeindex.org:443/api/v3/search?page=1&per_page={page}&location=IP&distance=100&stolenness=all"
 
 def getS3Client():
     parser = configparser.ConfigParser()
@@ -29,7 +30,7 @@ def executeQuery(schema, query):
     cur.execute(query)
     cur.close()
 
-def extractJsonFromRestApi():    
+def extractJsonFromRestApi(url):    
     return seq(requests.get(url).json()['bikes'])
 
 def writeJsonFile(dataJson):
@@ -61,8 +62,9 @@ def loadJsonToDatawarehouseSnowflake(filenameInS3, url):
     executeQuery("ingestion", sql)
 
 def populateDimBike():
+    print(f"\t adding bikes to dimensions...")
     dimBikesSql = """
-        insert into datamodel.dim_bike(id, description, frame_model, manufacturer_name, serial, valid_from, valid_to, valid, entryHash)
+        insert into datamodel.dim_bike(id, description, frame_model, manufacturer_name, serial, valid_from, valid_to, isActive, entryHash)
         select 
             raw:id,
             raw:description,
@@ -79,6 +81,7 @@ def populateDimBike():
 
 
 def populateFactlessBikeStolen():
+    print(f"\t adding factless events...")
     factlesStolenBike = """            
         insert into datamodel.factless_bikes_stolen(bikeid, date, fact, location)
         select
@@ -98,6 +101,7 @@ def populateFactlessBikeStolen():
     executeQuery("ingestion", factlesStolenBike)
 
 def markStageIntegrationCompleted():
+    print(f"\t archiving stage...")
     factlesStolenBike = """            
         update epam.ingestion.stage
         set ingested_at =  CURRENT_TIMESTAMP()
@@ -109,12 +113,12 @@ def markStageIntegrationCompleted():
 
 if __name__ == '__main__':
     # extract
-    bikesJson = extractJsonFromRestApi()
+    bikesJson = extractJsonFromRestApi(url(1))
     # load to s3
     writeJsonFile(bikesJson)
     filenameInS3 = uploadJsonToDatalakeS3()
     # load to DW
-    loadJsonToDatawarehouseSnowflake(filenameInS3, url)
+    loadJsonToDatawarehouseSnowflake(filenameInS3, url(1))
     # Transform
     populateDimBike()
     populateFactlessBikeStolen()

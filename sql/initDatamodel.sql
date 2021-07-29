@@ -14,7 +14,7 @@ CREATE or REPLACE TABLE epam.datamodel.dim_bike(
   -- slow changing dimension (SCD) type 2
   valid_from datetime not null,
   valid_to datetime not null,
-  valid boolean not null,
+  isActive boolean not null,
   entryHash varchar not null
 );
 

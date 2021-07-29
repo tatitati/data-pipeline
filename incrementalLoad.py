@@ -6,7 +6,8 @@ import configparser
 import time
 import snowflake.connector
 
-url = "https://bikeindex.org:443/api/v3/search?page=1&per_page=15&location=IP&distance=10&stolenness=all"
+def url(page):
+    return f"https://bikeindex.org:443/api/v3/search?page=1&per_page={page}&location=IP&distance=100&stolenness=all"
 
 def getS3Client():
     parser = configparser.ConfigParser()
@@ -29,7 +30,7 @@ def executeQuery(schema, query):
     cur.execute(query)
     cur.close()
 
-def extractJsonFromRestApi():    
+def extractJsonFromRestApi(url):    
     return seq(requests.get(url).json()['bikes'])
 
 def writeJsonFile(dataJson):
@@ -60,8 +61,9 @@ def loadJsonToDatawarehouseSnowflake(filenameInS3, url):
     executeQuery("ingestion", sql)
 
 def populateDimBike():
+    print(f"\t deprecating changes of bikes...")
     markAsInactiveOutOfDate = """        
-        update dim_bike set 
+        update datamodel.dim_bike set 
             isActive = false,
             valid_to = current_timestamp()
         where id in (
@@ -80,23 +82,65 @@ def populateDimBike():
         """
     executeQuery("ingestion", markAsInactiveOutOfDate)
 
-    insertNewOrUpdated = """        
-        insert into user_dim(userId, name, postcode, valid_from, valid_to, isActive, userHash)
-        SELECT 
-            user_ingestion.id, 
-            user_ingestion.name,
-            user_ingestion.postcode,
-            current_timestamp(),
-            '9999-02-20 00:00:00.000' as datetime,
-            true,
-            md5(to_varchar(array_construct(user_ingestion.id, user_ingestion.name, user_ingestion.postcode)))
-        from user_ingestion user_ingestion
-        left join user_dim  on user_dim.userId = user_ingestion.id
-        where   md5(to_varchar(array_construct(user_ingestion.id, user_ingestion.name, user_ingestion.postcode))) <> userHash;
+    print(f"\t inserting updates of bikes...")
+    insertUpdated = """        
+        insert into datamodel.dim_bike(id, description, frame_model, manufacturer_name, serial, valid_from, valid_to, isActive, entryHash)
+            SELECT 
+                stage.raw:id, 
+                stage.raw:description,
+                stage.raw:frame_model,
+                stage.raw:manufacturer_name,
+                stage.raw:serial,
+                current_timestamp(),
+                '9999-02-20 00:00:00.000' as datetime,
+                true,
+                md5(to_varchar(array_construct(
+                        stage.raw:id, 
+                        stage.raw:description, 
+                        stage.raw:frame_model, 
+                        stage.raw:manufacturer_name,
+                        stage.raw:serial
+                    )))
+            from ingestion.stage stage
+            left join datamodel.dim_bike dim_bike  on dim_bike.id = stage.raw:id
+            where   
+                    md5(to_varchar(array_construct(
+                        stage.raw:id, 
+                        stage.raw:description, 
+                        stage.raw:frame_model, 
+                        stage.raw:manufacturer_name,
+                        stage.raw:serial
+                    ))) <> dim_bike.entryHash        
         """
-    executeQuery("ingestion", insertNewOrUpdated)  
+    executeQuery("ingestion", insertUpdated) 
+
+    print(f"\t inserting new bikes...")
+    insertNewBikes = """        
+        insert into datamodel.dim_bike(id, description, frame_model, manufacturer_name, serial, valid_from, valid_to, isActive, entryHash)
+            SELECT 
+                stage.raw:id, 
+                stage.raw:description,
+                stage.raw:frame_model,
+                stage.raw:manufacturer_name,
+                stage.raw:serial,
+                current_timestamp(),
+                '9999-02-20 00:00:00.000' as datetime,
+                true,
+                md5(to_varchar(array_construct(
+                        stage.raw:id, 
+                        stage.raw:description, 
+                        stage.raw:frame_model, 
+                        stage.raw:manufacturer_name,
+                        stage.raw:serial
+                    )))
+            from ingestion.stage stage
+            left join datamodel.dim_bike dim_bike  on dim_bike.id = stage.raw:id
+            where dim_bike.id is null
+        """
+    executeQuery("ingestion", insertNewBikes)  
 
 def populateFactlessBikeStolen():
+    print(f"\t adding factless events...")
     factlesStolenBike = """            
         insert into datamodel.factless_bikes_stolen(bikeid, date, fact, location)
         select
@@ -111,33 +155,36 @@ def populateFactlessBikeStolen():
                 else raw:location_found
             end as location             
         from ingestion.stage
-        where integrated_at is null;
+        where ingested_at is null;
         """
 
     executeQuery("ingestion", factlesStolenBike)
 
 def markStageIntegrationCompleted():
+    print(f"\t archiving stage...")
     factlesStolenBike = """            
         update epam.ingestion.stage
-        set integrated_at =  CURRENT_TIMESTAMP()
-        where integrated_at is null
+        set ingested_at =  CURRENT_TIMESTAMP()
+        where ingested_at is null
         """
 
     executeQuery("ingestion", factlesStolenBike)        
 
 if __name__ == '__main__':
-    # extract
-    bikesJson = extractJsonFromRestApi()
+    for page in range(2, 9):
+        print(f"batch: {page}")
+        # extract
+        bikesJson = extractJsonFromRestApi(url(page))
 
-    # load to s3
-    writeJsonFile(bikesJson)
-    filenameInS3 = uploadJsonToDatalakeS3()
-    # # load to DW
-    loadJsonToDatawarehouseSnowflake(filenameInS3, url)
-    # Transform: Update bike dim
-        # populateDimBike()
-    # Transform: Add to factless table
-        # populateFactlessBikeStolen()
+        # load to s3
+        writeJsonFile(bikesJson)
+        filenameInS3 = uploadJsonToDatalakeS3()
+        # # load to DW
+        loadJsonToDatawarehouseSnowflake(filenameInS3, url(page))
+        # Transform: Update bike dim
+        populateDimBike()
+        # Transform: Add to factless table
+        populateFactlessBikeStolen()
 
-    # mark staged integration completed
-        # markStageIntegrationCompleted()
+        # mark staged integration completed
+        markStageIntegrationCompleted()
