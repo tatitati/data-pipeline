@@ -150,20 +150,20 @@ def markStageIntegrationCompleted():
     executeQuery("ingestion", factlesStolenBike)        
 
 if __name__ == '__main__':
-    for page in range(2, 9):
-        print(f"batch: {page}")
+    # for page in range(2, 9):
+        # print(f"batch: {page}")
         # extract
-        bikesJson = extractJsonFromRestApi(url(page))
+        # bikesJson = extractJsonFromRestApi(url(page))
 
         # load to s3
-        writeJsonFile(bikesJson)
-        filenameInS3 = uploadJsonToDatalakeS3()
-        # # load to DW
-        loadJsonToDatawarehouseSnowflake(filenameInS3, url(page))
-        # Transform: Update bike dim
-        populateDimBike()
-        # Transform: Add to factless table
-        populateFactlessBikeStolen()
+        # writeJsonFile(bikesJson)
+    filenameInS3 = uploadJsonToDatalakeS3()
+    # # load to DW
+    loadJsonToDatawarehouseSnowflake(filenameInS3, url(1))
+    # Transform: Update bike dim
+    populateDimBike()
+    # Transform: Add to factless table
+    populateFactlessBikeStolen()
 
-        # mark staged integration completed
-        markStageIntegrationCompleted()
+    # mark staged integration completed
+    markStageIntegrationCompleted()
