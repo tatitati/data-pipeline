@@ -59,7 +59,7 @@ def loadJsonToDatawarehouseSnowflake(filenameInS3, url):
 
     executeQuery("ingestion", sql)
 
-def transformStagedToBike():
+def populateDimBike():
     inactiveBike = """        
         MERGE INTO epam.datamodel.dim_bike as dim_bike USING (select * from ingestion.stage where ingestion.stage.integrated_at is null) as stage ON stage.raw:id = dim_bike.id
         WHEN MATCHED and valid=true THEN 
@@ -121,9 +121,9 @@ if __name__ == '__main__':
     # # load to DW
     loadJsonToDatawarehouseSnowflake(filenameInS3, url)
     # Transform: Update bike dim
-    transformStagedToBike()
+        # populateDimBike()
     # Transform: Add to factless table
-    populateFactlessBikeStolen()
+        # populateFactlessBikeStolen()
 
     # mark staged integration completed
-    markStageIntegrationCompleted()
+        # markStageIntegrationCompleted()
