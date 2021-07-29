@@ -60,27 +60,34 @@ def loadJsonToDatawarehouseSnowflake(filenameInS3, url):
     executeQuery("ingestion", sql)
 
 def populateDimBike():
-    inactiveBike = """        
-        MERGE INTO epam.datamodel.dim_bike as dim_bike USING (select * from ingestion.stage where ingestion.stage.integrated_at is null) as stage ON stage.raw:id = dim_bike.id
-        WHEN MATCHED and valid=true THEN 
-            update set valid_to = CURRENT_TIMESTAMP(), valid = false;        
+    markAsInactiveOutOfDate = """        
+        update user_dim set 
+            isActive = false,
+            valid_to = current_timestamp()
+        where userId in (
+            SELECT id
+            from user_ingestion
+            left join user_dim  on user_dim.userId = user_ingestion.id
+            where   md5(to_varchar(array_construct(user_ingestion.id, user_ingestion.name, user_ingestion.postcode))) <> userHash
+        );
         """
-    executeQuery("ingestion", inactiveBike)
+    executeQuery("ingestion", markAsInactiveOutOfDate)
 
-    insertNewOrUpdated = """
-            insert into datamodel.dim_bike(id, description, frame_model, manufacturer_name, serial, valid_from, valid_to, valid)
-            select 
-                raw:id,
-                raw:description,
-                raw:frame_model,
-                raw:manufacturer_name,
-                raw:serial,
-                CURRENT_TIMESTAMP,
-                '9999-02-20 00:00:00.000' as datetime,
-                true
-            from ingestion.stagev;
+    insertNewOrUpdated = """        
+        insert into user_dim(userId, name, postcode, valid_from, valid_to, isActive, userHash)
+        SELECT 
+            user_ingestion.id, 
+            user_ingestion.name,
+            user_ingestion.postcode,
+            current_timestamp(),
+            '9999-02-20 00:00:00.000' as datetime,
+            true,
+            md5(to_varchar(array_construct(user_ingestion.id, user_ingestion.name, user_ingestion.postcode)))
+        from user_ingestion user_ingestion
+        left join user_dim  on user_dim.userId = user_ingestion.id
+        where   md5(to_varchar(array_construct(user_ingestion.id, user_ingestion.name, user_ingestion.postcode))) <> userHash;
         """
-    executeQuery("ingestion", insertNewOrUpdated)
+    executeQuery("ingestion", insertNewOrUpdated)  
 
 def populateFactlessBikeStolen():
     factlesStolenBike = """            

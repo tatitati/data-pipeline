@@ -53,7 +53,7 @@ left join user_dim  on user_dim.userId = user_ingestion.id
 where   md5(to_varchar(array_construct(user_ingestion.id, user_ingestion.name, user_ingestion.postcode))) <> userHash;
 
 
--- wer receive a full dataset daily. This update (set active=false) the ones in user_dim without changes from the whole dataset
+-- wer receive a full dataset daily. This update (set active=false) the ones in user_dim with changes from the whole dataset
 update user_dim set 
     isActive = false,
     valid_to = current_timestamp()
@@ -66,6 +66,7 @@ where userId in (
 
 select * from user_dim;
 
+-- wer receive a full dataset daily. This insert new rows in user_dim for users with changes
 insert into user_dim(userId, name, postcode, valid_from, valid_to, isActive, userHash)
   SELECT 
     user_ingestion.id, 
