@@ -61,14 +61,21 @@ def loadJsonToDatawarehouseSnowflake(filenameInS3, url):
 
 def populateDimBike():
     markAsInactiveOutOfDate = """        
-        update user_dim set 
+        update dim_bike set 
             isActive = false,
             valid_to = current_timestamp()
-        where userId in (
-            SELECT id
-            from user_ingestion
-            left join user_dim  on user_dim.userId = user_ingestion.id
-            where   md5(to_varchar(array_construct(user_ingestion.id, user_ingestion.name, user_ingestion.postcode))) <> userHash
+        where id in (
+            SELECT dim_bike.id
+            from ingestion.stage stage
+            left join datamodel.dim_bike dim_bike  on dim_bike.id = stage.raw:id
+            where   
+                md5(to_varchar(array_construct(
+                    stage.raw:id, 
+                    stage.raw:description, 
+                    stage.raw:frame_model, 
+                    stage.raw:manufacturer_name,
+                    stage.raw:serial
+                ))) <> dim_bike.entryHash
         );
         """
     executeQuery("ingestion", markAsInactiveOutOfDate)
