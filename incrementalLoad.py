@@ -85,7 +85,7 @@ def populateDimBike():
         """
     executeQuery("ingestion", markAsInactiveOutOfDate)
 
-    print(f"\t inserting updated bikes...")
+    print(f"\t inserting updated bikes or new bikes...")
     insertUpdated = """        
         insert into datamodel.dim_bike(id, description, frame_model, manufacturer_name, serial, valid_from, valid_to, isActive, entryHash)
             SELECT 
@@ -113,34 +113,10 @@ def populateDimBike():
                         stage.raw:frame_model, 
                         stage.raw:manufacturer_name,
                         stage.raw:serial
-                    ))) <> dim_bike.entryHash        
+                    ))) <> dim_bike.entryHash    
+                    or dim_bike.id is null
         """
-    executeQuery("ingestion", insertUpdated) 
-
-    print(f"\t inserting new bikes...")
-    insertNewBikes = """        
-        insert into datamodel.dim_bike(id, description, frame_model, manufacturer_name, serial, valid_from, valid_to, isActive, entryHash)
-            SELECT 
-                stage.raw:id, 
-                stage.raw:description,
-                stage.raw:frame_model,
-                stage.raw:manufacturer_name,
-                stage.raw:serial,
-                current_timestamp(),
-                '9999-02-20 00:00:00.000' as datetime,
-                true,
-                md5(to_varchar(array_construct(
-                        stage.raw:id, 
-                        stage.raw:description, 
-                        stage.raw:frame_model, 
-                        stage.raw:manufacturer_name,
-                        stage.raw:serial
-                    )))
-            from ingestion.stage stage
-            left join datamodel.dim_bike dim_bike  on dim_bike.id = stage.raw:id
-            where dim_bike.id is null
-        """
-    executeQuery("ingestion", insertNewBikes)  
+    executeQuery("ingestion", insertUpdated)    
 
 def populateFactlessBikeStolen():
     print(f"\t adding factless events...")
