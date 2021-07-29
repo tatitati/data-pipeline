@@ -49,7 +49,7 @@ def uploadJsonToDatalakeS3():
     return filenameInS3
 
 def loadJsonToDatawarehouseSnowflake(filenameInS3, url):
-    sql = f"""insert into epam.ingestion.stage(raw, filename, copied_at, integrated_at, url) 
+    sql = f"""insert into epam.ingestion.stage(raw, filename, copied_at, ingested_at, url) 
             select 
                 *, 
                 's3://b-i-k-e-s/{filenameInS3}', 
@@ -62,7 +62,7 @@ def loadJsonToDatawarehouseSnowflake(filenameInS3, url):
 
 def populateDimBike():
     dimBikesSql = """
-        insert into datamodel.dim_bike(id, description, frame_model, manufacturer_name, serial, valid_from, valid_to, valid)
+        insert into datamodel.dim_bike(id, description, frame_model, manufacturer_name, serial, valid_from, valid_to, valid, entryHash)
         select 
             raw:id,
             raw:description,
@@ -71,7 +71,8 @@ def populateDimBike():
             raw:serial,
             CURRENT_TIMESTAMP,
             '9999-02-20 00:00:00.000' as datetime,
-            true
+            true,
+            md5(to_varchar(array_construct(raw:id, raw:description, raw:frame_model, raw:manufacturer_name,raw:serial)))
         from ingestion.stage;
         """
     executeQuery("ingestion", dimBikesSql)
@@ -99,8 +100,8 @@ def populateFactlessBikeStolen():
 def markStageIntegrationCompleted():
     factlesStolenBike = """            
         update epam.ingestion.stage
-        set integrated_at =  CURRENT_TIMESTAMP()
-        where integrated_at is null
+        set ingested_at =  CURRENT_TIMESTAMP()
+        where ingested_at is null
         """
 
     executeQuery("ingestion", factlesStolenBike)
